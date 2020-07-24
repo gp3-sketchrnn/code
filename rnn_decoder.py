@@ -19,9 +19,9 @@ import random
 
 from magenta.contrib import training as contrib_training
 from magenta.models.sketch_rnn import rnn
-from magenta.models.sketch_rnn.utils import *
 import numpy as np
 import tensorflow.compat.v1 as tf
+import sketch_utils
 
 
 def copy_hparams(hparams):
@@ -359,7 +359,7 @@ class Model(object):
                 capped_gvs, global_step=self.global_step, name='train_step')
 
 
-def sample(sess, model, seq_len=250, temperature=1.0, greedy_mode=False, z=None):
+def sample(sess, model, cnn_sess, cnn_model, seq_len=250, temperature=1.0, greedy_mode=False, z=None):
     """Samples a sequence from a pre-trained model."""
 
     def adjust_temp(pi_pdf, temp):
@@ -439,9 +439,13 @@ def sample(sess, model, seq_len=250, temperature=1.0, greedy_mode=False, z=None)
         next_x1, next_x2 = sample_gaussian_2d(o_mu1[0][idx], o_mu2[0][idx],
                                               o_sigma1[0][idx], o_sigma2[0][idx],
                                               o_corr[0][idx], np.sqrt(temp), greedy)
-
-        strokes[i, :] = [next_x1, next_x2, eos[0], eos[1], eos[2]]
-        to_normal_strokes(strokes)
+        if i > 1:
+            # todo debug
+            img_data = sketch_utils.sketch_2_img(strokes[:i])
+            next_x1, next_x2 = sketch_utils.get_suggested_point(cnn_sess, cnn_model, img_data)
+            strokes[i, :] = [next_x1, next_x2, eos[0], eos[1], eos[2]]
+        else:
+            strokes[i, :] = [next_x1, next_x2, eos[0], eos[1], eos[2]]
 
         params = [
             o_pi[0], o_mu1[0], o_mu2[0], o_sigma1[0], o_sigma2[0], o_corr[0],

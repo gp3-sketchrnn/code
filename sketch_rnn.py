@@ -1,3 +1,4 @@
+import cv2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
@@ -119,10 +120,16 @@ load_checkpoint(sess=sess, checkpoint_path=MODEL_DIR)
 sketch = test_set.random_sample()
 
 z = encode(sketch)
-sketch_reconstructed = decode(z, temperature=.6)
-# _, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
-# draw(sketch_reconstructed, ax=ax)
-# plt.show()
+sketch_reconstructed = decode(z, temperature=.5)
+fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+draw(sketch_reconstructed, ax=ax)
+plt.show()
+data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+img = cv2.resize(data, (128, 128))
+plt.imshow(img)
+plt.waitforbuttonpress(0)
+
 
 # fig, ax_arr = plt.subplots(nrows=5, ncols=10, figsize=(8, 4), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
 # fig.tight_layout()
@@ -141,47 +148,47 @@ sketch_reconstructed = decode(z, temperature=.6)
 #
 # plt.show()
 
-fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(6, 3), subplot_kw=dict(xticks=[], yticks=[]))
-fig.tight_layout()
-
-x_pad, y_pad = 10, 10
-x_pad //= 2
-y_pad //= 2
-
-(x_min_1, x_max_1, y_min_1, y_max_1) = get_bounds(data=sketch, factor=.2)
-
-(x_min_2, x_max_2, y_min_2, y_max_2) = get_bounds(data=sketch_reconstructed, factor=.2)
-
-x_min = np.minimum(x_min_1, x_min_2)
-y_min = np.minimum(y_min_1, y_min_2)
-
-x_max = np.maximum(x_max_1, x_max_2)
-y_max = np.maximum(y_max_1, y_max_2)
-
-ax1.set_xlim(x_min - x_pad, x_max + x_pad)
-ax1.set_ylim(y_max + y_pad, y_min - y_pad)
-
-ax1.set_xlabel('Original')
-
-ax2.set_xlim(x_min - x_pad, x_max + x_pad)
-ax2.set_ylim(y_max + y_pad, y_min - y_pad)
-
-ax2.set_xlabel('Reconstruction')
-
-
-def animate(i):
-    original = SketchPath(sketch[:i + 1])
-    reconstructed = SketchPath(sketch_reconstructed[:i + 1])
-
-    patch1 = ax1.add_patch(patches.PathPatch(original,
-                                             facecolor='none'))
-
-    patch2 = ax2.add_patch(patches.PathPatch(reconstructed,
-                                             facecolor='none'))
-
-    return patch1, patch2
-
-
-frames = np.maximum(sketch.shape[0], sketch_reconstructed.shape[0])
-FuncAnimation(fig, animate, frames=frames-1, interval=15, repeat_delay=1000*3, blit=True)
-plt.show()
+# fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(6, 3), subplot_kw=dict(xticks=[], yticks=[]))
+# fig.tight_layout()
+#
+# x_pad, y_pad = 10, 10
+# x_pad //= 2
+# y_pad //= 2
+#
+# (x_min_1, x_max_1, y_min_1, y_max_1) = get_bounds(data=sketch, factor=.2)
+#
+# (x_min_2, x_max_2, y_min_2, y_max_2) = get_bounds(data=sketch_reconstructed, factor=.2)
+#
+# x_min = np.minimum(x_min_1, x_min_2)
+# y_min = np.minimum(y_min_1, y_min_2)
+#
+# x_max = np.maximum(x_max_1, x_max_2)
+# y_max = np.maximum(y_max_1, y_max_2)
+#
+# ax1.set_xlim(x_min - x_pad, x_max + x_pad)
+# ax1.set_ylim(y_max + y_pad, y_min - y_pad)
+#
+# ax1.set_xlabel('Original')
+#
+# ax2.set_xlim(x_min - x_pad, x_max + x_pad)
+# ax2.set_ylim(y_max + y_pad, y_min - y_pad)
+#
+# ax2.set_xlabel('Reconstruction')
+#
+#
+# def animate(i):
+#     original = SketchPath(sketch[:i + 1])
+#     reconstructed = SketchPath(sketch_reconstructed[:i + 1])
+#
+#     patch1 = ax1.add_patch(patches.PathPatch(original,
+#                                              facecolor='none'))
+#
+#     patch2 = ax2.add_patch(patches.PathPatch(reconstructed,
+#                                              facecolor='none'))
+#
+#     return patch1, patch2
+#
+#
+# frames = np.maximum(sketch.shape[0], sketch_reconstructed.shape[0])
+# FuncAnimation(fig, animate, frames=frames-1, interval=15, repeat_delay=1000*3, blit=True)
+# plt.show()
