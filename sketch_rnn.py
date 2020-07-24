@@ -76,14 +76,12 @@ def draw(sketch_data, factor=.2, pad=(10, 10), ax=None):
 
 
 def encode(input_strokes):
-    strokes = to_big_strokes(input_strokes).tolist()
+    strokes = to_big_strokes(input_strokes, max_len=eval_hps_model.max_seq_len).tolist()
     strokes.insert(0, [0, 0, 1, 0, 0])
     seq_len = [len(input_strokes)]
-    z = sess.run(eval_model.batch_z,
-                 feed_dict={
-                     eval_model.input_data: [strokes],
-                     eval_model.sequence_lengths: seq_len})[0]
-    return z
+    sz = sess.run(eval_model.batch_z, feed_dict={
+        eval_model.input_data: [strokes], eval_model.sequence_lengths: seq_len})[0]
+    return sz
 
 
 def decode(z_input=None, temperature=.1, factor=.2):
@@ -119,6 +117,71 @@ sess.run(tf.global_variables_initializer())
 load_checkpoint(sess=sess, checkpoint_path=MODEL_DIR)
 
 sketch = test_set.random_sample()
-fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
-draw(sketch, ax=ax)
+
+z = encode(sketch)
+sketch_reconstructed = decode(z, temperature=.6)
+# _, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+# draw(sketch_reconstructed, ax=ax)
+# plt.show()
+
+# fig, ax_arr = plt.subplots(nrows=5, ncols=10, figsize=(8, 4), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+# fig.tight_layout()
+#
+# for row_num, ax_row in enumerate(ax_arr):
+#     for col_num, ax in enumerate(ax_row):
+#         if not col_num:
+#             draw(sketch, ax=ax)
+#             xlabel = 'original'
+#         else:
+#             t = col_num / 10.
+#             draw(decode(z, temperature=t), ax=ax)
+#             xlabel = r'$\tau={}$'.format(t)
+#         if row_num + 1 == len(ax_arr):
+#             ax.set_xlabel(xlabel)
+#
+# plt.show()
+
+fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(6, 3), subplot_kw=dict(xticks=[], yticks=[]))
+fig.tight_layout()
+
+x_pad, y_pad = 10, 10
+x_pad //= 2
+y_pad //= 2
+
+(x_min_1, x_max_1, y_min_1, y_max_1) = get_bounds(data=sketch, factor=.2)
+
+(x_min_2, x_max_2, y_min_2, y_max_2) = get_bounds(data=sketch_reconstructed, factor=.2)
+
+x_min = np.minimum(x_min_1, x_min_2)
+y_min = np.minimum(y_min_1, y_min_2)
+
+x_max = np.maximum(x_max_1, x_max_2)
+y_max = np.maximum(y_max_1, y_max_2)
+
+ax1.set_xlim(x_min - x_pad, x_max + x_pad)
+ax1.set_ylim(y_max + y_pad, y_min - y_pad)
+
+ax1.set_xlabel('Original')
+
+ax2.set_xlim(x_min - x_pad, x_max + x_pad)
+ax2.set_ylim(y_max + y_pad, y_min - y_pad)
+
+ax2.set_xlabel('Reconstruction')
+
+
+def animate(i):
+    original = SketchPath(sketch[:i + 1])
+    reconstructed = SketchPath(sketch_reconstructed[:i + 1])
+
+    patch1 = ax1.add_patch(patches.PathPatch(original,
+                                             facecolor='none'))
+
+    patch2 = ax2.add_patch(patches.PathPatch(reconstructed,
+                                             facecolor='none'))
+
+    return patch1, patch2
+
+
+frames = np.maximum(sketch.shape[0], sketch_reconstructed.shape[0])
+FuncAnimation(fig, animate, frames=frames-1, interval=15, repeat_delay=1000*3, blit=True)
 plt.show()
