@@ -21,7 +21,7 @@ def load_image(path):
     xx = int((img.shape[1] - short_edge) / 2)
     crop_img = img[yy: yy + short_edge, xx: xx + short_edge]
     # resize to 224, 224
-    resized_img = skimage.transform.resize(crop_img, (32, 32))
+    resized_img = skimage.transform.resize(crop_img, (128, 128))
     return resized_img
 
 

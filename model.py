@@ -437,14 +437,15 @@ def sample(sess, model, cnn_model, seq_len=250, temperature=1.0, greedy_mode=Fal
         eos[idx_eos] = 1
 
         next_x1, next_x2 = sample_gaussian_2d(o_mu1[0][idx], o_mu2[0][idx],
-                                              o_sigma1[0][idx], o_sigma2[0][idx],
-                                              o_corr[0][idx], np.sqrt(temp), greedy)
-        # if i > 10:
-        #     # todo debug
-        #     img_data = sketch_utils.sketch_2_img(strokes[:i])
-        #     next_x1, next_x2 = sketch_utils.get_suggested_point(sess, cnn_model, img_data)
-        #     strokes[i, :] = [next_x1, next_x2, eos[0], eos[1], eos[2]]
-        # else:
+                                                  o_sigma1[0][idx], o_sigma2[0][idx],
+                                                  o_corr[0][idx], np.sqrt(temp), greedy)
+
+        if i % 10 == 5:
+            img_data = sketch_utils.sketch_2_img(strokes[:i])
+            delta_x1, delta_x2 = sketch_utils.get_suggested_point(sess, cnn_model, img_data)
+            next_x1 += delta_x1
+            next_x2 += delta_x2
+        print(i, seq_len)
         strokes[i, :] = [next_x1, next_x2, eos[0], eos[1], eos[2]]
 
         params = [

@@ -18,8 +18,7 @@ class Vgg16:
             print(path)
         # 加载网络权重参数
         self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
-        fc_prob = [np.random.normal(0, 0.001, [4096, 2]), np.random.normal(0, 0.001, [2, ])]
-        self.data_dict['fc_prob'] = fc_prob
+
         print("npy file loaded")
 
     def build(self, rgb):
@@ -60,10 +59,7 @@ class Vgg16:
         self.conv5_3 = self.conv_layer(self.conv5_2, "conv5_3")
         self.pool5 = self.max_pool(self.conv5_3, 'pool5')
 
-        self.fc6 = self.fc_layer(self.pool5, "fc6")
-
-        self.prob = self.fc_layer(self.fc6, "fc_prob")
-
+        self.prob = self.fc_layer(self.pool5, "prob")
         self.data_dict = None
 
     def avg_pool(self, bottom, name):

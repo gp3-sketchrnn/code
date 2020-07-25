@@ -11,6 +11,8 @@ from matplotlib import rc
 
 from six.moves import map
 import os
+import vgg16
+import hparam as p
 
 from magenta.models.sketch_rnn.sketch_rnn_train import *
 from magenta.models.sketch_rnn.model import *
@@ -85,13 +87,14 @@ def encode(input_strokes):
     return sz
 
 
-def decode(z_input=None, temperature=.1, factor=.2):
+def decode(vgg_model, z_input=None, temperature=.1, factor=.2):
     z = None
     if z_input is not None:
         z = [z_input]
     sample_strokes, m = sample(
         sess,
         sample_model,
+        vgg_model,
         seq_len=eval_model.hps.max_seq_len,
         temperature=temperature, z=z)
     return to_normal_strokes(sample_strokes)
@@ -117,19 +120,34 @@ sess.run(tf.global_variables_initializer())
 
 load_checkpoint(sess=sess, checkpoint_path=MODEL_DIR)
 
+# ========   train   ==============
+# main(None)
+
+# ========   evaluate   ===========
+
 sketch = test_set.random_sample()
 
+
+# ========   danger!   ============
+images = np.zeros([1, p.size, p.size, 3], dtype=np.float32)
+
+vgg = vgg16.Vgg16("/tmp/vgg16/vgg16.npy")
+with tf.name_scope("content_vgg"):
+    vgg.build(images)
+
+# ========   save!   ==============
+
 z = encode(sketch)
-sketch_reconstructed = decode(z, temperature=.5)
+sketch_reconstructed = decode(vgg, z, temperature=.5)
 fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
 draw(sketch_reconstructed, ax=ax)
 plt.show()
-data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-img = cv2.resize(data, (128, 128))
-plt.imshow(img)
-plt.waitforbuttonpress(0)
-
+#
+# data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+# data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+# img = cv2.resize(data, (128, 128))
+# plt.imshow(img)
+# plt.waitforbuttonpress(0)
 
 # fig, ax_arr = plt.subplots(nrows=5, ncols=10, figsize=(8, 4), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
 # fig.tight_layout()
@@ -141,7 +159,7 @@ plt.waitforbuttonpress(0)
 #             xlabel = 'original'
 #         else:
 #             t = col_num / 10.
-#             draw(decode(z, temperature=t), ax=ax)
+#             draw(decode(vgg, z, temperature=t), ax=ax)
 #             xlabel = r'$\tau={}$'.format(t)
 #         if row_num + 1 == len(ax_arr):
 #             ax.set_xlabel(xlabel)

@@ -6,6 +6,7 @@ from matplotlib.path import Path
 from magenta.models.sketch_rnn.utils import *
 import cv2
 import tensorflow.compat.v1 as tf
+import hparam as p
 
 
 class SketchPath(Path):
@@ -48,15 +49,17 @@ def draw(sketch_data, factor=.2, pad=(10, 10), ax=None):
 def sketch_2_img(strokes):
     sketch_reconstructed = to_normal_strokes(strokes)
     fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+    fig.canvas.draw()
     draw(sketch_reconstructed, ax=ax)
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
-    img = cv2.resize(data, (128, 128))
-    return np.reshape(img, (1, 128, 128, 3))
+    plt.close(fig)
+    img = cv2.resize(data, (p.size, p.size))
+    return np.reshape(img, (1, p.size, p.size, 3))
 
 
 def get_suggested_point(sess, cnn_model, img):
-    images = tf.placeholder("float", [1, 128, 128, 3])
-    feed_dict = {images: img}
-    prob = sess.run(cnn_model.prob, feed_dict=feed_dict)
+    images = tf.placeholder(tf.float32, [1, p.size, p.size, 3], name="pc_img")
+    feed_dict = {images: img * 1.0}
+    prob = sess.run(cnn_model.prob, feed_dict=feed_dict)[0]
     return prob[0], prob[1]
