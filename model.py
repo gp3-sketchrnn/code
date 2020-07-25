@@ -15,6 +15,18 @@
 # Lint as: python3
 """Sketch-RNN Model."""
 
+
+
+
+
+# ======   changed the sampling part  ======
+# ======            danger!           ======
+# ======        caution to use!       ======
+
+
+
+
+
 import random
 
 from magenta.contrib import training as contrib_training
