@@ -1,23 +1,20 @@
-import cv2
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
-import numpy as np
-import tensorflow.compat.v1 as tf
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.path import Path
 from matplotlib import rc
 
-from six.moves import map
-import os
-import vgg16
 import hparam as p
+import train_v5 as tv5
 
 from magenta.models.sketch_rnn.sketch_rnn_train import *
 from magenta.models.sketch_rnn.model import *
 from magenta.models.sketch_rnn.utils import *
 from magenta.models.sketch_rnn.rnn import *
+
+import cv2
+import os
 
 rc('animation', html='html5')
 np.set_printoptions(precision=8,
@@ -87,18 +84,17 @@ def encode(input_strokes):
     return sz
 
 
-def decode(vgg_model, z_input=None, temperature=.1, factor=.2):
+def decode(cnn_model, z_input=None, temperature=.1, factor=.2):
     z = None
     if z_input is not None:
         z = [z_input]
-    sample_strokes, m = sample(
+    sample_strokes, re_strokes, m = sample(
         sess,
         sample_model,
-        vgg_model,
+        cnn_model,
         seq_len=eval_model.hps.max_seq_len,
         temperature=temperature, z=z)
-    return to_normal_strokes(sample_strokes)
-
+    return to_normal_strokes(sample_strokes), to_normal_strokes(re_strokes)
 
 DATA_DIR = '/tmp/sketch_rnn/dataset/'
 MODELS_ROOT_DIR = '/tmp/sketch_rnn/models'
@@ -125,23 +121,24 @@ load_checkpoint(sess=sess, checkpoint_path=MODEL_DIR)
 
 # ========   evaluate   ===========
 
+# if not os.path.exists("data/results/sketch.npy"):
+#     sketch = test_set.random_sample()
+#     np.save("data/results/sketch", sketch)
+# else:
+#     sketch = np.load("data/results/sketch.npy")
 sketch = test_set.random_sample()
 
+# ========   cnn   ============
+cnn_model = tv5.build_model()
 
-# ========   danger!   ============
-images = np.zeros([1, p.size, p.size, 3], dtype=np.float32)
-
-vgg = vgg16.Vgg16("/tmp/vgg16/vgg16.npy")
-with tf.name_scope("content_vgg"):
-    vgg.build(images)
-
-# ========   save!   ==============
+# ========   cnn   ============
 
 z = encode(sketch)
-sketch_reconstructed = decode(vgg, z, temperature=.5)
-fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
-draw(sketch_reconstructed, ax=ax)
-plt.show()
+s_sketch, re_sketch = decode(cnn_model, z, temperature=0.05)
+
+# _, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+# draw(sketch_reconstructed, ax=ax)
+# plt.show()
 #
 # data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
 # data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
@@ -159,54 +156,59 @@ plt.show()
 #             xlabel = 'original'
 #         else:
 #             t = col_num / 10.
-#             draw(decode(vgg, z, temperature=t), ax=ax)
+#             draw(decode(z, temperature=t), ax=ax)
 #             xlabel = r'$\tau={}$'.format(t)
 #         if row_num + 1 == len(ax_arr):
 #             ax.set_xlabel(xlabel)
 #
 # plt.show()
+#
+# data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+# data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+# cv2.imwrite("data/results/random.jpg", data)
 
-# fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(6, 3), subplot_kw=dict(xticks=[], yticks=[]))
-# fig.tight_layout()
-#
-# x_pad, y_pad = 10, 10
-# x_pad //= 2
-# y_pad //= 2
-#
-# (x_min_1, x_max_1, y_min_1, y_max_1) = get_bounds(data=sketch, factor=.2)
-#
-# (x_min_2, x_max_2, y_min_2, y_max_2) = get_bounds(data=sketch_reconstructed, factor=.2)
-#
-# x_min = np.minimum(x_min_1, x_min_2)
-# y_min = np.minimum(y_min_1, y_min_2)
-#
-# x_max = np.maximum(x_max_1, x_max_2)
-# y_max = np.maximum(y_max_1, y_max_2)
-#
-# ax1.set_xlim(x_min - x_pad, x_max + x_pad)
-# ax1.set_ylim(y_max + y_pad, y_min - y_pad)
-#
-# ax1.set_xlabel('Original')
-#
-# ax2.set_xlim(x_min - x_pad, x_max + x_pad)
-# ax2.set_ylim(y_max + y_pad, y_min - y_pad)
-#
-# ax2.set_xlabel('Reconstruction')
-#
-#
-# def animate(i):
-#     original = SketchPath(sketch[:i + 1])
-#     reconstructed = SketchPath(sketch_reconstructed[:i + 1])
-#
-#     patch1 = ax1.add_patch(patches.PathPatch(original,
-#                                              facecolor='none'))
-#
-#     patch2 = ax2.add_patch(patches.PathPatch(reconstructed,
-#                                              facecolor='none'))
-#
-#     return patch1, patch2
-#
-#
-# frames = np.maximum(sketch.shape[0], sketch_reconstructed.shape[0])
-# FuncAnimation(fig, animate, frames=frames-1, interval=15, repeat_delay=1000*3, blit=True)
-# plt.show()
+fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1, figsize=(6, 3), subplot_kw=dict(xticks=[], yticks=[]))
+fig.tight_layout()
+
+x_pad, y_pad = 10, 10
+
+x_pad //= 2
+y_pad //= 2
+
+(x_min_1, x_max_1, y_min_1, y_max_1) = get_bounds(data=s_sketch, factor=.2)
+
+(x_min_2, x_max_2, y_min_2, y_max_2) = get_bounds(data=re_sketch, factor=.2)
+
+x_min = np.minimum(x_min_1, x_min_2)
+y_min = np.minimum(y_min_1, y_min_2)
+
+x_max = np.maximum(x_max_1, x_max_2)
+y_max = np.maximum(y_max_1, y_max_2)
+
+ax1.set_xlim(x_min - x_pad, x_max + x_pad)
+ax1.set_ylim(y_max + y_pad, y_min - y_pad)
+
+ax1.set_xlabel('Original')
+
+ax2.set_xlim(x_min - x_pad, x_max + x_pad)
+ax2.set_ylim(y_max + y_pad, y_min - y_pad)
+
+ax2.set_xlabel('Reconstruction')
+
+
+def animate(i):
+    original = SketchPath(s_sketch[:i + 1])
+    reconstructed = SketchPath(re_sketch[:i + 1])
+
+    patch1 = ax1.add_patch(patches.PathPatch(original,
+                                             facecolor='none'))
+
+    patch2 = ax2.add_patch(patches.PathPatch(reconstructed,
+                                             facecolor='none'))
+
+    return patch1, patch2
+
+
+frames = np.maximum(s_sketch.shape[0], re_sketch.shape[0])
+FuncAnimation(fig, animate, frames=frames - 1, interval=15, repeat_delay=1000 * 3, blit=True)
+plt.show()
