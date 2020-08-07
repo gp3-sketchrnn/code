@@ -7,6 +7,7 @@ from matplotlib import rc
 
 import hparam as p
 import train_v5 as tv5
+import train_v4 as tv4
 
 from magenta.models.sketch_rnn.sketch_rnn_train import *
 from magenta.models.sketch_rnn.model import *
@@ -96,6 +97,7 @@ def decode(cnn_model, z_input=None, temperature=.1, factor=.2):
         temperature=temperature, z=z)
     return to_normal_strokes(sample_strokes), to_normal_strokes(re_strokes)
 
+
 DATA_DIR = '/tmp/sketch_rnn/dataset/'
 MODELS_ROOT_DIR = '/tmp/sketch_rnn/models'
 
@@ -126,25 +128,35 @@ load_checkpoint(sess=sess, checkpoint_path=MODEL_DIR)
 #     np.save("data/results/sketch", sketch)
 # else:
 #     sketch = np.load("data/results/sketch.npy")
-sketch = test_set.random_sample()
 
 # ========   cnn   ============
 cnn_model = tv5.build_model()
-
+# cnn_model = tv4.build_model()
 # ========   cnn   ============
 
+# for index in range(1000):
+sketch = test_set.random_sample()
 z = encode(sketch)
 s_sketch, re_sketch = decode(cnn_model, z, temperature=0.05)
 
-# _, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
-# draw(sketch_reconstructed, ax=ax)
-# plt.show()
-#
+# fig, ax = plt.subplots(figsize=(1.28, 1.28), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+# draw(s_sketch, ax=ax)
+# fig.canvas.draw()
 # data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
 # data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+# plt.close(fig)
 # img = cv2.resize(data, (128, 128))
-# plt.imshow(img)
-# plt.waitforbuttonpress(0)
+# # cv2.imwrite("data/1/" + str(index) + ".jpg", img)
+#
+# fig, ax = plt.subplots(figsize=(1.28, 1.28), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
+# draw(re_sketch, ax=ax)
+# fig.canvas.draw()
+# data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+# data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+# plt.close(fig)
+# img = cv2.resize(data, (128, 128))
+# cv2.imwrite("data/2/" + str(index) + ".jpg", img)
+# # print(index)
 
 # fig, ax_arr = plt.subplots(nrows=5, ncols=10, figsize=(8, 4), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
 # fig.tight_layout()

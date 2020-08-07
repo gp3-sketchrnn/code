@@ -2,11 +2,11 @@ import numpy as np
 import tensorflow.compat.v1 as tf
 
 import vgg16
-import utils
+import tmp_model
 import time
 
-img1 = utils.load_image("./test_img/tiger.jpeg")
-img2 = utils.load_image("./test_img/puzzle.jpeg")
+img1 = tmp_model.load_image("./test_img/tiger.jpeg")
+img2 = tmp_model.load_image("./test_img/puzzle.jpeg")
 
 batch1 = img1.reshape((1, 128, 128, 3))
 batch2 = img2.reshape((1, 128, 128, 3))

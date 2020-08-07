@@ -107,21 +107,22 @@ def compute_loss(z_pi, z_mu1, z_mu2, z_sigma1, z_sigma2, z_corr,
 def build_model():
     main_input = tf.keras.Input((p.size, p.size, 3), name="ipt")
 
-    cv1 = tf.keras.layers.Conv2D(filters=64, kernel_size=[2, 2], strides=1, activation=tf.nn.relu, padding='same')(main_input)
-    con = tf.keras.layers.Conv2D(filters=64, kernel_size=[2, 2], strides=2, activation=tf.nn.relu, padding='same')(cv1)
+    cv1 = tf.keras.layers.Conv2D(filters=128, kernel_size=[2, 2], strides=1, activation=tf.nn.relu, padding='same')(main_input)
+    con = tf.keras.layers.Conv2D(filters=128, kernel_size=[2, 2], strides=2, activation=tf.nn.relu, padding='same')(cv1)
 
-    cv3 = tf.keras.layers.Conv2D(filters=128, kernel_size=[3, 3], strides=1, activation=tf.nn.relu, padding='same')(con)
-    cv4 = tf.keras.layers.Conv2D(filters=128, kernel_size=[3, 3], strides=2, activation=tf.nn.relu, padding='same')(cv3)
+    cv3 = tf.keras.layers.Conv2D(filters=256, kernel_size=[2, 2], strides=1, activation=tf.nn.relu, padding='same')(con)
+    cv4 = tf.keras.layers.Conv2D(filters=256, kernel_size=[2, 2], strides=2, activation=tf.nn.relu, padding='same')(cv3)
 
-    cv5 = tf.keras.layers.Conv2D(filters=256, kernel_size=[3, 3], strides=1, activation=tf.nn.relu, padding='same')(cv4)
-    cv6 = tf.keras.layers.Conv2D(filters=256, kernel_size=[3, 3], strides=2, activation=tf.nn.relu, padding='same')(cv5)
+    cv5 = tf.keras.layers.Conv2D(filters=512, kernel_size=[2, 2], strides=2, activation=tf.nn.relu, padding='same')(cv4)
+    cv6 = tf.keras.layers.Conv2D(filters=512, kernel_size=[2, 2], strides=2, activation=tf.nn.relu, padding='same')(cv5)
 
-    cv7 = tf.keras.layers.Conv2D(filters=512, kernel_size=[3, 3], strides=1, activation=tf.nn.relu, padding='same')(cv6)
-    cv8 = tf.keras.layers.Conv2D(filters=512, kernel_size=[3, 3], strides=2, activation=tf.nn.relu, padding='same')(cv7)
+    # cv7 = tf.keras.layers.Conv2D(filters=512, kernel_size=[3, 3], strides=1, activation=tf.nn.relu, padding='same')(cv6)
+    # cv8 = tf.keras.layers.Conv2D(filters=512, kernel_size=[3, 3], strides=2, activation=tf.nn.relu, padding='same')(cv7)
 
-    fc = tf.keras.layers.Flatten()(cv8)
-    d1 = tf.keras.layers.Dense(1024, tf.nn.elu)(fc)
-    d2 = tf.keras.layers.Dense(1024, tf.nn.elu)(d1)
+    fc = tf.keras.layers.Flatten()(cv6)
+    d1 = tf.keras.layers.Dense(2048, activation=tf.nn.elu)(fc)
+    dp2 = tf.keras.layers.Dropout(0.2)(d1)
+    d2 = tf.keras.layers.Dense(2048, activation=None)(dp2)
     opt = tf.keras.layers.Dense(123, activation=None)(d2)
     model = tf.keras.models.Model(inputs=[main_input], outputs=[opt])
     model.summary()
@@ -139,12 +140,12 @@ if __name__ == '__main__':
 
     model = build_model()
 
-    for i in range(1, 100):
-        lr = (p.lr - p.mlr) * (p.dr ** i) + p.mlr
+    for i in range(1, 10):
+        lr = p.lr
 
-        model.compile(optimizer=tf.keras.optimizers.Adam(lr),
+        model.compile(optimizer=tf.keras.optimizers.Adam(lr, decay=1e-8),
                       loss=get_loss_function, metrics=["accuracy"])
-        history = model.fit(train_ds, shuffle=True, epochs=100, steps_per_epoch=2, validation_data=validation_ds,
+        history = model.fit(train_ds, shuffle=True, epochs=100, steps_per_epoch=5, validation_data=validation_ds,
                             validation_steps=10, batch_size=p.batch_size)
 
         model.save_weights(p.log_root)

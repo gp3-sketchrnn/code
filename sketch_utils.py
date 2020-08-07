@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-import numpy as np
 from matplotlib.path import Path
 from magenta.models.sketch_rnn.utils import *
 import cv2
-import tensorflow.compat.v1 as tf
+import tensorflow as tf
 import hparam as p
+from tensorflow.keras import backend as k
 
 
 class SketchPath(Path):
@@ -48,9 +48,9 @@ def draw(sketch_data, factor=.2, pad=(10, 10), ax=None):
 
 def sketch_2_img(strokes):
     sketch_reconstructed = to_normal_strokes(strokes)
-    fig, ax = plt.subplots(figsize=(3, 3), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
-    fig.canvas.draw()
+    fig, ax = plt.subplots(figsize=(1.28, 1.28), subplot_kw=dict(xticks=[], yticks=[], frame_on=False))
     draw(sketch_reconstructed, ax=ax)
+    fig.canvas.draw()
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
     plt.close(fig)
@@ -58,8 +58,37 @@ def sketch_2_img(strokes):
     return np.reshape(img, (1, p.size, p.size, 3))
 
 
-def get_suggested_point(sess, cnn_model, img):
-    images = tf.placeholder(tf.float32, [1, p.size, p.size, 3], name="pc_img")
-    feed_dict = {images: img * 1.0}
-    prob = sess.run(cnn_model.prob, feed_dict=feed_dict)[0]
-    return prob[0], prob[1]
+def get_suggested_point(cnn_model, img):
+    images = 1 - img / 255.0
+    prob = cnn_model.predict(images)
+    # get_layer_output = k.function([cnn_model.layers[0].input], [cnn_model.layers[5].output])
+    # layer_output = get_layer_output(images)[0]
+    # layer_output = np.reshape(layer_output, [16, 16, 512])
+    # graph = np.zeros([16 * 16, 16 * 32])
+    # acc = 0
+    # for i in range(16):
+    #     for j in range(32):
+    #         graph[i * 16: i * 16 + 16, j * 16: j * 16 + 16] = layer_output[:, :, acc]
+    #         acc += 1
+    # plt.imshow(graph)
+    # plt.waitforbuttonpress(1)
+    z = prob
+    z_pen_logits = z[:, 0:3]  # pen states
+    z_pi, z_mu1, z_mu2, z_sigma1, z_sigma2, z_corr = np.split(z[:, 3:], 6, 1)
+
+    z_pi = np.exp(z_pi) / np.sum(np.exp(z_pi))
+    z_pen = np.exp(z_pen_logits) / np.sum(np.exp(z_pen_logits))
+
+    # exponentiate the sigmas and also make corr between -1 and 1.
+    z_sigma1 = np.exp(z_sigma1)
+    z_sigma2 = np.exp(z_sigma2)
+    z_corr = np.tanh(z_corr)
+    return z_pi, z_mu1, z_mu2, z_sigma1, z_sigma2, z_corr, z_pen
+
+
+def get_point(cnn_model, img):
+    images = 1 - img / 255.0
+
+    tb_callback = tf.keras.callbacks.TensorBoard(log_dir="model/callback")
+    prob = cnn_model.predict(images, callbacks=[tb_callback])
+    return prob[0][0], prob[0][1]
